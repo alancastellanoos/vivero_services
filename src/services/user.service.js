@@ -1,20 +1,20 @@
-import { User } from "../models/index.js";
+// archivo: services/user.service.js (CORREGIDO a CommonJS)
 
-export const getUsers = async (req, res) => {
-  try {
-    const users = await User.findAll();
-    res.json(users);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+const User = require("../models/user.model"); // Usar require para CommonJS
+
+// Solo lógica de negocio.
+const getUsers = async () => {
+  const users = await User.findAll();
+  return users;
 };
 
-export const addUser = async (req, res) => {
-  try {
-    const { name, email, password } = req.body;
-    const user = await User.create({ name, email, password });
-    res.status(201).json(user);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+const createUser = async (userData) => {
+  const user = await User.create(userData);
+  return user;
+};
+
+// Exportar las funciones usando module.exports
+module.exports = {
+  getUsers,
+  createUser
 };
