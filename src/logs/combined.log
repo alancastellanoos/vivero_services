@@ -1,4 +1,0 @@
-{"level":"info","message":"Usuario creado: prueba@vivero.com","service":"vivero-service","timestamp":"2025-10-19 23:23:08"}
-{"level":"info","message":"Login exitoso para el usuario ID: 3","service":"vivero-service","timestamp":"2025-10-19 23:25:01"}
-{"level":"warn","message":"Token inválido o expirado: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOjMsImlhdCI6MTc2MDkzNzkwMSwiZXhwIjoxNzYwOTQ1MTAxfQ.Ay_Izci1GwVlWHHOmvduzrWK5CSZ76YDlp_nF8ANBMk\"","service":"vivero-service","timestamp":"2025-10-19 23:26:06"}
-{"level":"info","message":"Solicitud exitosa de lista de usuarios.","service":"vivero-service","timestamp":"2025-10-19 23:27:15"}
