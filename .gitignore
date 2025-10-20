@@ -1,0 +1,20 @@
+
+/node_modules
+/package-lock.json
+
+
+/logs
+*.log
+
+
+.env
+
+
+/test-reports
+
+
+.DS_Store          # macOS
+npm-debug.log*
+yarn-debug.log*
+.idea/             # IntelliJ/Webstorm
+.vscode/           # VSCode
