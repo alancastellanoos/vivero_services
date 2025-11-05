@@ -1,45 +1,58 @@
-// archivo: controllers/user.controller.js (Refactorizado)
+// archivo: controllers/user.controller.js (SIN TRY-CATCH, Con HTTP-STATUS)
 
+const httpStatus = require('http-status'); // NUEVO
 const logger = require('../config/logger'); 
-const { getUsers: getUsersService, createUser: createUserService } = require("../services/user.service");
+const { 
+  getUsers: getUsersService, 
+  getUserById: getUserByIdService,
+  createUser: createUserService,
+  updateUser: updateUserService,
+  deleteUser: deleteUserService,
+} = require("../services/user.service");
 
-const getUsers = async (req, res) => {
-  try {
-    const users = await getUsersService();
-    logger.info('Solicitud exitosa de lista de usuarios.');
-    res.json(users);
-  } catch (err) {
-    logger.error(`Error al obtener usuarios: ${err.message}`, { stack: err.stack });
-    res.status(500).json({ error: 'Error interno del servidor al obtener usuarios.' });
-  }
+// Read All
+const getUsers = async (req, res, next) => {
+  const users = await getUsersService();
+  logger.info('Usuarios obtenidos.');
+  res.status(httpStatus.OK).json(users); // 200 OK
 };
 
-const addUser = async (req, res) => {
-  try {
-    const { name, email, password } = req.body;
-    
-    const newUser = await createUserService({ name, email, password }); 
-    
-    logger.info(`Usuario creado: ${newUser.email}`);
-    
-    // Devolvemos el usuario, excluyendo la contraseña hasheada
-    res.status(201).json({
-        id: newUser.id,
-        name: newUser.name,
-        email: newUser.email,
-        createdAt: newUser.createdAt
-    });
-
-  } catch (err) {
-    // Manejo de error de duplicado de Sequelize (email unique)
-    if (err.name === 'SequelizeUniqueConstraintError') { 
-        logger.warn(`Intento de registro fallido: Email duplicado: ${req.body.email}`);
-        return res.status(400).json({ error: 'El email ya está registrado.' });
-    }
-    
-    logger.error(`Error al crear usuario: ${err.message}`, { stack: err.stack });
-    res.status(500).json({ error: 'Error interno del servidor al registrar.' });
-  }
+// Read One
+const getUser = async (req, res, next) => {
+  const { id } = req.params;
+  const user = await getUserByIdService(id);
+  logger.info(`Usuario ID ${id} obtenido.`);
+  res.status(httpStatus.OK).json(user); // 200 OK
 };
 
-module.exports = { getUsers, addUser };
+// Create (Registro)
+const addUser = async (req, res, next) => {
+  const newUser = await createUserService(req.body);
+  logger.info(`Usuario creado: ${newUser.email}`);
+  res.status(httpStatus.CREATED).json(newUser); // 201 CREATED
+};
+
+// Update
+const updateUser = async (req, res, next) => {
+  const { id } = req.params;
+  const updatedUser = await updateUserService(id, req.body);
+  logger.info(`Usuario ID ${id} actualizado.`);
+  res.status(httpStatus.OK).json(updatedUser); // 200 OK
+};
+
+// Delete
+const deleteUser = async (req, res, next) => {
+  const { id } = req.params;
+  await deleteUserService(id);
+  logger.info(`Usuario ID ${id} eliminado.`);
+  // 204 NO CONTENT es el estándar para eliminación exitosa sin cuerpo de respuesta
+  res.status(httpStatus.NO_CONTENT).send(); 
+};
+
+module.exports = { 
+  getUsers, 
+  getUser, 
+  addUser, 
+  updateUser, 
+  deleteUser 
+};
