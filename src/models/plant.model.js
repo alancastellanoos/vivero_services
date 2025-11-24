@@ -1,8 +1,7 @@
-// archivo: models/plant.model.js
 
 const { DataTypes } = require("sequelize");
 const sequelize = require("../config/db"); 
-const User = require('./user.model'); // Asume que exportas User.model.js
+const User = require('./user.model'); 
 
 const Plant = sequelize.define("Plant", {
   title: {
@@ -21,16 +20,16 @@ const Plant = sequelize.define("Plant", {
     defaultValue: 'available',
     allowNull: false,
   },
-  // Clave foránea del usuario que la publica (debe existir)
+
   ownerId: {
     type: DataTypes.INTEGER,
     allowNull: false,
     references: {
-      model: 'Users', // Nombre de la tabla de usuarios
+      model: 'Users', 
       key: 'id',
     }
   },
-  // Clave foránea del usuario que la adopta (puede ser nulo inicialmente)
+
   adopterId: {
     type: DataTypes.INTEGER,
     allowNull: true,
@@ -41,7 +40,7 @@ const Plant = sequelize.define("Plant", {
   }
 });
 
-// Definir las asociaciones
+
 Plant.belongsTo(User, { as: 'Owner', foreignKey: 'ownerId' });
 Plant.belongsTo(User, { as: 'Adopter', foreignKey: 'adopterId' });
 

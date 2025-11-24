@@ -1,4 +1,4 @@
-// archivo: models/comment.model.js
+
 
 const { DataTypes } = require("sequelize");
 const sequelize = require("../config/db"); 
@@ -10,19 +10,19 @@ const Comment = sequelize.define("Comment", {
     type: DataTypes.TEXT,
     allowNull: false,
   },
-  plantId: { // A qué planta pertenece el comentario
+  plantId: {
     type: DataTypes.INTEGER,
     allowNull: false,
     references: { model: 'Plants', key: 'id' }
   },
-  userId: { // Qué usuario hizo el comentario
+  userId: { 
     type: DataTypes.INTEGER,
     allowNull: false,
     references: { model: 'Users', key: 'id' }
   }
 });
 
-// Definir asociaciones
+
 Comment.belongsTo(Plant, { foreignKey: 'plantId' });
 Plant.hasMany(Comment, { foreignKey: 'plantId' });
 

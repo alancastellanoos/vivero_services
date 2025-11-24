@@ -1,8 +1,7 @@
-// archivo: models/user.model.js (MODIFICADO)
 
 const { DataTypes } = require("sequelize");
 const sequelize = require("../config/db"); 
-const bcrypt = require('bcryptjs'); // NUEVO
+const bcrypt = require('bcryptjs'); 
 
 const User = sequelize.define("User", {
   name: {
@@ -20,13 +19,12 @@ const User = sequelize.define("User", {
   }
 });
 
-// HOOK: Hashear la contraseña antes de guardar
 User.beforeCreate(async (user) => {
     const salt = await bcrypt.genSalt(10);
     user.password = await bcrypt.hash(user.password, salt);
 });
 
-// HOOK: Hashear la contraseña antes de actualizar si se modifica
+
 User.beforeUpdate(async (user) => {
     if (user.changed('password')) {
       const salt = await bcrypt.genSalt(10);
@@ -34,7 +32,7 @@ User.beforeUpdate(async (user) => {
     }
 });
 
-// Método para verificar la contraseña en el login
+
 User.prototype.comparePassword = function(candidatePassword) {
     return bcrypt.compare(candidatePassword, this.password);
 };

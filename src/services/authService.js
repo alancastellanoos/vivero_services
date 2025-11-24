@@ -1,5 +1,4 @@
-// archivo: services/authService.js (NUEVO)
-
+ 
 const jwt = require('jsonwebtoken');
 const User = require('../models/user.model'); 
 const logger = require('../config/logger');

@@ -1,4 +1,3 @@
-// archivo: routes/plant.routes.js
 
 const express = require("express");
 const { body, param } = require("express-validator");
@@ -16,7 +15,7 @@ const {
 
 const router = express.Router();
 
-// --- Validaciones Reutilizables ---
+
 const idValidation = [
     param("id").isInt().withMessage("El ID debe ser un número entero."),
     validateFields,
@@ -29,29 +28,25 @@ const plantBodyValidation = [
     validateFields,
 ];
 
-// ------------------------------------
-// RUTAS
-// ------------------------------------
 
-// [READ ALL] - GET /api/plants (Permite buscar por tag o status)
 router.get("/", getPlants); 
 
-// [CREATE] - POST /api/plants (Protegida)
+
 router.post("/", authMiddleware, plantBodyValidation, createPlant);
 
-// [READ ONE] - GET /api/plants/:id
+
 router.get("/:id", idValidation, getPlant);
 
-// [UPDATE] - PUT /api/plants/:id (Protegida - Solo dueño)
+
 router.put("/:id", authMiddleware, idValidation, plantBodyValidation, updatePlant);
 
-// [DELETE] - DELETE /api/plants/:id (Protegida - Solo dueño)
+
 router.delete("/:id", authMiddleware, idValidation, deletePlant);
 
-// [ADOPT] - POST /api/plants/:id/adoptar (Funcionalidad UX)
+
 router.post("/:id/adoptar", authMiddleware, idValidation, adoptPlant);
 
-// [COMMENT] - POST /api/plants/:id/comentarios (Funcionalidad UX)
+
 router.post("/:id/comentarios", authMiddleware, idValidation, [body("content").notEmpty().withMessage("El comentario no puede estar vacío.")], addComment);
 
 
