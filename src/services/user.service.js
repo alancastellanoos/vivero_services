@@ -1,20 +1,64 @@
-// archivo: services/user.service.js (CORREGIDO a CommonJS)
 
-const User = require("../models/user.model"); // Usar require para CommonJS
+const User = require("../models/user.model"); 
+const httpStatus = require('http-status'); 
 
-// Solo lógica de negocio.
-const getUsers = async () => {
-  const users = await User.findAll();
-  return users;
-};
 
-const createUser = async (userData) => {
-  const user = await User.create(userData);
+const getUserById = async (id) => {
+  const user = await User.findByPk(id, { attributes: { exclude: ['password'] } });
+  if (!user) {
+
+    const error = new Error('Usuario no encontrado.');
+    error.customStatus = httpStatus.NOT_FOUND; 
+    throw error;
+  }
   return user;
 };
 
-// Exportar las funciones usando module.exports
+
+const createUser = async (userData) => {
+  const newUser = await User.create(userData);
+  const userResponse = newUser.toJSON();
+  delete userResponse.password; 
+  return userResponse;
+};
+
+
+const updateUser = async (id, userData) => {
+  const user = await User.findByPk(id);
+  if (!user) {
+    const error = new Error('Usuario no encontrado.');
+    error.customStatus = httpStatus.NOT_FOUND; 
+    throw error;
+  }
+  
+  await user.update(userData);
+  
+  const userResponse = user.toJSON();
+  delete userResponse.password;
+  return userResponse;
+};
+
+
+const deleteUser = async (id) => {
+  const deletedRows = await User.destroy({ where: { id } });
+  
+  if (deletedRows === 0) {
+    const error = new Error('Usuario no encontrado.');
+    error.customStatus = httpStatus.NOT_FOUND; 
+    throw error;
+  }
+};
+
+
+const getUsers = async () => {
+  const users = await User.findAll({ attributes: { exclude: ['password'] } });
+  return users;
+};
+
 module.exports = {
   getUsers,
-  createUser
+  getUserById,
+  createUser,
+  updateUser,
+  deleteUser
 };

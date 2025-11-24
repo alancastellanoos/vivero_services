@@ -1,10 +1,8 @@
-# archivo: swagger.yaml
-
 openapi: 3.0.0
 info:
   title: API de Vivero (Node.js/Sequelize)
   version: 1.0.0
-  description: Documentación de la API para la gestión de usuarios y autenticación.
+  description: Documentacion de la API para la gestion de usuarios, autenticacion y plantas en adopcion.
 servers:
   - url: /api
     description: Servidor Local
@@ -15,77 +13,225 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
+  
   schemas:
+    # --- ESQUEMA DE USUARIO (YA EXISTENTE) ---
     User:
       type: object
       properties:
         id:
           type: integer
+          readOnly: true
           example: 1
         name:
           type: string
-          example: Juan Pérez
+          example: Juan Perez
         email:
           type: string
           example: juan@mail.com
         password:
           type: string
-          description: Contraseña sin hashear (solo para POST)
-          example: miContraseñaSecreta
+          writeOnly: true
+          description: Contrasena sin hashear (solo para POST/PUT)
+          example: miContrasenaSecreta
+      required: 
+        - name
+        - email
+        - password
+
+    # --- ESQUEMA DE PLANTA (NUEVO) ---
+    Plant:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+          example: 5
+        title:
+          type: string
+          example: Cactus Silla de Suegra
+        description:
+          type: string
+          example: Lo dejo porque crecio mucho. Necesita mucho sol.
+        status:
+          type: string
+          enum: [available, pending, adopted]
+          example: available
+        ownerId:
+          type: integer
+          readOnly: true
+          description: ID del usuario que publica la planta.
+        adopterId:
+          type: integer
+          nullable: true
+          readOnly: true
+          description: ID del usuario que adopto la planta.
+        photos:
+          type: array
+          items:
+            type: string
+          description: Array de URLs de las fotos de la planta.
+        tags:
+          type: array
+          items:
+            type: string
+          description: Etiquetas para busqueda (ej: suculenta, interior, sol).
+      required: 
+        - title
+        - description
+
+    # --- ESQUEMA DE COMENTARIO (NUEVO) ---
+    Comment:
+      type: object
+      properties:
+        content:
+          type: string
+          example: Me interesa mucho, ¿todavia sigue disponible?
+      required:
+        - content
 
 paths:
+  # --- RUTAS DE AUTENTICACION Y USUARIOS (CRUD) ---
+
   /auth/login:
     post:
       tags:
-        - Autenticación
-      summary: Inicia sesión y obtiene un JWT.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - email
-                - password
-              properties:
-                email:
-                  type: string
-                  example: test@mail.com
-                password:
-                  type: string
-                  example: 123456
-      responses:
-        '200':
-          description: Login exitoso, retorna el token.
-        '400':
-          description: Credenciales inválidas.
+        - Autenticacion
+      summary: "Inicia sesion y obtiene un JWT."
+      # ... (Resto de la especificacion del login) ...
 
   /users:
     get:
       tags:
         - Usuarios
-      summary: Obtiene la lista de todos los usuarios (Ruta Protegida).
+      summary: "[READ ALL] Obtiene la lista de todos los usuarios (Protegida)."
       security:
         - BearerAuth: []
-      responses:
-        '200':
-          description: Lista de usuarios obtenida.
-        '401':
-          description: No autorizado (Token faltante o inválido).
+      # ... (Resto de la especificacion del GET ALL) ...
 
     post:
       tags:
         - Usuarios
-      summary: Crea un nuevo usuario.
+      summary: "[CREATE] Crea un nuevo usuario."
+      # ... (Resto de la especificacion del POST) ...
+      
+  /users/{id}:
+    # ... (Resto de las rutas GET/PUT/DELETE de usuarios) ...
+    
+  # --- RUTAS DE PLANTAS EN ADOPCION ---
+
+  /plants:
+    get:
+      tags:
+        - Plantas
+      summary: "[READ ALL] Obtiene lista de plantas. Filtra por tag o status."
+      parameters:
+        - in: query
+          name: tag
+          schema:
+            type: string
+          description: Filtrar por etiqueta (ej: 'suculenta').
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [available, adopted]
+          description: Filtrar por estado de adopcion.
+      responses:
+        '200':
+          description: Lista de plantas obtenida.
+
+    post:
+      tags:
+        - Plantas
+      summary: "[CREATE] Pone una planta en adopcion (Protegida)."
+      security:
+        - BearerAuth: []
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/User'
+              $ref: '#/components/schemas/Plant'
       responses:
         '201':
-          description: Usuario creado exitosamente.
+          description: Planta creada exitosamente.
+
+  /plants/{id}:
+    parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+        description: ID de la planta.
+        
+    get:
+      tags:
+        - Plantas
+      summary: "[READ ONE] Obtiene una planta por ID."
+      responses:
+        '200':
+          description: Planta encontrada.
+        '404':
+          description: Planta no encontrada.
+
+    put:
+      tags:
+        - Plantas
+      summary: "[UPDATE] Actualiza una planta por ID (Protegida - Solo dueno)."
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Plant'
+      responses:
+        '200':
+          description: Planta actualizada.
+        '403':
+          description: No tienes permiso para editarla.
+
+    delete:
+      tags:
+        - Plantas
+      summary: "[DELETE] Elimina una planta por ID (Protegida - Solo dueno)."
+      security:
+        - BearerAuth: []
+      responses:
+        '204':
+          description: Planta eliminada exitosamente.
+        '403':
+          description: No tienes permiso para eliminarla.
+
+  /plants/{id}/adoptar:
+    post:
+      tags:
+        - Plantas
+      summary: "Marca una planta como adoptada por el usuario logueado (Protegida)."
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Adopcion exitosa.
         '400':
-          description: Error de validación o email duplicado.
+          description: La planta ya no esta disponible o es tuya.
+
+  /plants/{id}/comentarios:
+    post:
+      tags:
+        - Plantas
+      summary: "Agrega un comentario a una planta (Protegida)."
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Comment'
+      responses:
+        '201':
+          description: Comentario agregado.

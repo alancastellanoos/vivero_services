@@ -1,4 +1,3 @@
-
 /node_modules
 /package-lock.json
 
@@ -11,7 +10,6 @@
 
 
 /test-reports
-
 
 .DS_Store          # macOS
 npm-debug.log*

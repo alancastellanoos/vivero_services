@@ -1,28 +1,63 @@
-// archivo: routes/user.routes.js (MODIFICADO)
-
 const express = require("express");
-const { body } = require("express-validator");
-const { getUsers, addUser } = require("../controllers/user.controller");
+const { body, param } = require("express-validator");
+const { 
+  getUsers, 
+  getUser, 
+  addUser, 
+  updateUser, 
+  deleteUser 
+} = require("../controllers/user.controller");
 const { validateFields } = require("../middlewares/validateFields");
-const { authMiddleware } = require("../middlewares/authMiddleware"); // NUEVO
+const { authMiddleware } = require("../middlewares/authMiddleware");
 
 const router = express.Router();
 
-// Ruta protegida por JWT
-router.get("/", authMiddleware, getUsers); 
 
-router.post(
-    "/",
-    [    
-        // Se cambió 'nombre' por 'name' para consistencia con el Model
-        body("name").notEmpty().withMessage("El nombre es obligatorio"),
-        body("email").isEmail().withMessage("El correo no es válido"),
-        body("password")
-          .isLength({ min: 6 })
-          .withMessage("La contraseña debe tener al menos 6 caracteres"),
-        validateFields,
-    ], 
-    addUser
-);
+const userValidation = [
+    body("name").notEmpty().withMessage("El nombre es obligatorio"),
+    body("email").isEmail().withMessage("El correo no es válido"),
+    validateFields,
+];
+
+
+const idValidation = [
+    param("id").isInt().withMessage("El ID debe ser un número entero"),
+    validateFields,
+];
+
+
+const postValidation = [
+    ...userValidation,
+    body("password")
+        .isLength({ min: 6 })
+        .withMessage("La contraseña debe tener al menos 6 caracteres"),
+    validateFields,
+];
+
+
+const putValidation = [
+    ...idValidation, 
+    ...userValidation, 
+    body("password")
+        .optional()
+        .isLength({ min: 6 })
+        .withMessage("La contraseña debe tener al menos 6 caracteres"),
+    validateFields,
+];
+
+router.get("/", authMiddleware, getUsers);
+
+
+router.post("/", postValidation, addUser);
+
+
+router.get("/:id", authMiddleware, idValidation, getUser);
+
+
+router.put("/:id", authMiddleware, putValidation, updateUser);
+
+
+router.delete("/:id", authMiddleware, idValidation, deleteUser);
+
 
 module.exports = router;

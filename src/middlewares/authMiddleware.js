@@ -1,11 +1,11 @@
-// archivo: middlewares/authMiddleware.js
+
 
 const jwt = require('jsonwebtoken');
 const User = require('../models/user.model'); 
 const logger = require('../config/logger');
 
 const authMiddleware = async (req, res, next) => {
-    // Lee el token del header (usando 'x-token' o 'Authorization: Bearer...')
+
     const token = req.header('x-token') || req.header('Authorization')?.replace('Bearer ', '');
 
     if (!token) {
