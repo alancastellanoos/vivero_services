@@ -1,14 +1,11 @@
-// archivo: models/planttag.model.js
+const { DataTypes } = require('sequelize');
+const sequelize = require('../config/db');
 
-const { DataTypes } = require("sequelize");
-const sequelize = require("../config/db"); 
-const Plant = require('./plant.model');
-const Tag = require('./tag.model');
-
-const PlantTag = sequelize.define('PlantTag', {}, { timestamps: false });
-
-// Definir asociaciones de Muchos a Muchos
-Plant.belongsToMany(Tag, { through: PlantTag, foreignKey: 'plantId' });
-Tag.belongsToMany(Plant, { through: PlantTag, foreignKey: 'tagId' });
+const PlantTag = sequelize.define('PlantTag', {
+    // Las claves 'plantId' y 'tagId' se definen en el archivo de relaciones
+}, {
+    // Esto asegura que Sequelize use los nombres de las claves primarias compuestas
+    timestamps: true
+});
 
 module.exports = PlantTag;

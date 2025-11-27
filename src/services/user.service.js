@@ -1,15 +1,11 @@
-
 const User = require("../models/user.model"); 
-const httpStatus = require('http-status'); 
-
+const createError = require('http-errors'); // Usamos http-errors para crear errores HTTP
+const { StatusCodes } = require('http-status-codes'); // Opcional, pero útil
 
 const getUserById = async (id) => {
   const user = await User.findByPk(id, { attributes: { exclude: ['password'] } });
   if (!user) {
-
-    const error = new Error('Usuario no encontrado.');
-    error.customStatus = httpStatus.NOT_FOUND; 
-    throw error;
+    throw createError(StatusCodes.NOT_FOUND, 'Usuario no encontrado.');
   }
   return user;
 };
@@ -26,9 +22,7 @@ const createUser = async (userData) => {
 const updateUser = async (id, userData) => {
   const user = await User.findByPk(id);
   if (!user) {
-    const error = new Error('Usuario no encontrado.');
-    error.customStatus = httpStatus.NOT_FOUND; 
-    throw error;
+    throw createError(StatusCodes.NOT_FOUND, 'Usuario no encontrado.');
   }
   
   await user.update(userData);
@@ -43,9 +37,7 @@ const deleteUser = async (id) => {
   const deletedRows = await User.destroy({ where: { id } });
   
   if (deletedRows === 0) {
-    const error = new Error('Usuario no encontrado.');
-    error.customStatus = httpStatus.NOT_FOUND; 
-    throw error;
+    throw createError(StatusCodes.NOT_FOUND, 'Usuario no encontrado.');
   }
 };
 

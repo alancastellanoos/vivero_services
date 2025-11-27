@@ -1,72 +1,67 @@
+// src/controllers/plant.controller.js (Limpio y con http-status-codes)
 
-const httpStatus = require('http-status');
-const logger = require('../config/logger'); 
+const { StatusCodes } = require('http-status-codes'); // Usamos la librería correcta
 const plantService = require("../services/plant.service");
-const commentService = require("../services/comment.service"); 
+// const logger = require('../config/logger'); 
 
-const createPlant = async (req, res, next) => {
-
-  const ownerId = req.user.id; 
-  const { title, description, photos, tags, ...rest } = req.body;
-  
-  const plant = await plantService.createPlant({ title, description, ...rest }, ownerId, photos, tags);
-  logger.info(`Planta ID ${plant.id} creada por usuario ${ownerId}.`);
-  res.status(httpStatus.CREATED).json(plant);
-};
+// --- Consulta de Plantas (Sin try...catch) ---
 
 const getPlants = async (req, res, next) => {
-
-  const { tag, status } = req.query; 
-  const plants = await plantService.getPlants({ tag, status });
-  res.status(httpStatus.OK).json(plants);
+    // Los errores de plantService.getPlants se pasarán a next()
+    const plants = await plantService.getPlants(req.query); 
+    // logger.info('Plantas obtenidas con filtros.');
+    res.status(StatusCodes.OK).json(plants); // 200 OK
 };
 
-
 const getPlant = async (req, res, next) => {
-  const plant = await plantService.getPlantById(req.params.id);
-  res.status(httpStatus.OK).json(plant);
+    const { id } = req.params;
+    const plant = await plantService.getPlantById(id);
+    // logger.info(`Detalle de Planta ID ${id} obtenido.`);
+    res.status(StatusCodes.OK).json(plant); // 200 OK
+};
+
+const getUserPlants = async (req, res, next) => {
+    const userId = req.user.id; 
+    const plants = await plantService.getUserPlants(userId);
+    // logger.info(`Plantas del usuario ID ${userId} obtenidas.`);
+    res.status(StatusCodes.OK).json(plants); // 200 OK
+};
+
+// --- Modificación de Plantas (Sin try...catch) ---
+
+const addPlant = async (req, res, next) => {
+    const userId = req.user.id; 
+    const { plantData, tagIds, careData } = req.body; 
+
+    const newPlant = await plantService.createPlant({ ...plantData, userId }, tagIds, careData);
+    // logger.info(`Planta creada: ${newPlant.name}`);
+    res.status(StatusCodes.CREATED).json(newPlant); // 201 CREATED
 };
 
 const updatePlant = async (req, res, next) => {
-  const ownerId = req.user.id;
-  const { tags, photos, ...plantData } = req.body; 
-  logger.info(`Planta ID ${req.params.id} actualizada por dueño ${ownerId}.`);
-  res.status(httpStatus.OK).json(updatedPlant);
+    const { id } = req.params;
+    const userId = req.user.id; 
+    const { plantData, tagIds, careData } = req.body;
+    
+    const updatedPlant = await plantService.updatePlant(id, userId, plantData, tagIds, careData);
+    // logger.info(`Planta ID ${id} actualizada.`);
+    res.status(StatusCodes.OK).json(updatedPlant); // 200 OK
 };
-
 
 const deletePlant = async (req, res, next) => {
-  const ownerId = req.user.id;
-  await plantService.deletePlant(req.params.id, ownerId);
-  logger.info(`Planta ID ${req.params.id} eliminada por dueño ${ownerId}.`);
-  res.status(httpStatus.NO_CONTENT).send();
+    const { id } = req.params;
+    const userId = req.user.id; 
+    
+    await plantService.deletePlant(id, userId);
+    // logger.info(`Planta ID ${id} eliminada.`);
+    res.status(StatusCodes.NO_CONTENT).send(); // 204 No Content
 };
 
-
-const adoptPlant = async (req, res, next) => {
-  const adopterId = req.user.id;
-  const plant = await plantService.adoptPlant(req.params.id, adopterId);
-  logger.info(`Planta ID ${req.params.id} adoptada por usuario ${adopterId}.`);
-  res.status(httpStatus.OK).json({ msg: "Adopción exitosa. ¡Felicidades!", plant });
-};
-
-
-const addComment = async (req, res, next) => {
-    const userId = req.user.id;
-    const { content } = req.body;
-    const { id: plantId } = req.params;
-
-    const comment = await commentService.createComment({ plantId, userId, content });
-    logger.info(`Comentario añadido a Planta ID ${plantId} por usuario ${userId}.`);
-    res.status(httpStatus.CREATED).json(comment);
-};
-
-module.exports = {
-  createPlant,
-  getPlants,
-  getPlant,
-  updatePlant,
-  deletePlant,
-  adoptPlant,
-  addComment
+module.exports = { 
+    getPlants, 
+    getPlant, 
+    getUserPlants,
+    addPlant, 
+    updatePlant, 
+    deletePlant 
 };

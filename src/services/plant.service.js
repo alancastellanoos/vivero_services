@@ -1,149 +1,155 @@
+const { Plant, PlantCare, PlantTag, Tag, User, AdoptionRequest } = require('../models/index'); 
+const createError = require('http-errors');
+const { StatusCodes } = require('http-status-codes');
 
+const PLANT_FULL_INCLUDE_OPTIONS = [
+    { model: User, as: 'Donator', attributes: ['id', 'name'] },
+    { model: Tag, as: 'tags' },
+    { model: PlantCare }
+];
 
-const Plant = require("../models/plant.model");
-const Photo = require("../models/photo.model");
-const Tag = require("../models/tag.model");
-const httpStatus = require('http-status');
-const { User } = require("../models"); 
-
-
-const processTags = async (plant, tagNames) => {
-    if (!tagNames || tagNames.length === 0) return;
-
-    const tags = await Promise.all(tagNames.map(name => 
-        Tag.findOrCreate({ where: { name: name.toLowerCase() }, defaults: { name } })
-    ));
-
-    const tagInstances = tags.map(result => result[0]);
-    await plant.setTags(tagInstances);
-};
-
-
-const createPlant = async (plantData, ownerId, photos, tags) => {
-    const newPlant = await Plant.create({ ...plantData, ownerId });
-    
-
-    if (photos && photos.length > 0) {
-        await Photo.bulkCreate(photos.map(url => ({ url, plantId: newPlant.id, isPrimary: photos[0] === url })));
-    }
-    
-
-    await processTags(newPlant, tags);
-    
-    return Plant.findByPk(newPlant.id, {
-        include: [Photo, Tag]
-    });
-};
-
-
-const getPlants = async ({ tag, status }) => {
+const getPlants = async (filters) => {
+    const { searchTerm, tagId, status, isCatalog } = filters;
     const where = {};
     const include = [
-        { model: Photo, attributes: ['url', 'isPrimary'] },
-        { model: Tag, attributes: ['name'] },
-        { model: User, as: 'Owner', attributes: ['name', 'email'] }
+        { model: Tag, as: 'tags' },
+        { model: User, as: 'Donator', attributes: ['id', 'name'] },
+        { model: PlantCare, required: isCatalog === 'true' }
     ];
 
-    if (status && ['available', 'adopted'].includes(status)) {
+    if (searchTerm) {
+        where.name = { [Plant.sequelize.Op.like]: `%${searchTerm}%` };
+    }
+
+    if (status) {
         where.status = status;
+    } else if (isCatalog === 'false' || !isCatalog) {
+        where.status = 'AVAILABLE';
     }
 
-
-    if (tag) {
-        
-        include[1].where = { name: tag.toLowerCase() };
+    if (isCatalog) {
+        where.isCatalog = isCatalog === 'true';
     }
+    
+    if (tagId) {
+        include[0].where = { id: tagId }; 
+        include[0].through = { attributes: [] };
+    }
+    
+    const plants = await Plant.findAll({
+        where,
+        include,
+        attributes: { exclude: ['userId'] },
+        order: [['createdAt', 'DESC']]
+    });
 
-    return Plant.findAll({ where, include });
+    return plants;
 };
 
-
-const getPlantById = async (id) => {
-    const plant = await Plant.findByPk(id, {
-        include: [
-            { model: Photo, attributes: ['url', 'isPrimary'] },
-            { model: Tag, attributes: ['name'] },
-            { model: User, as: 'Owner', attributes: ['name', 'email'] },
-            
-            { model: require("../models/comment.model"), include: [{ model: User, attributes: ['name'] }] } 
-        ]
+const getPlantById = async (plantId) => {
+    const plant = await Plant.findByPk(plantId, {
+        include: PLANT_FULL_INCLUDE_OPTIONS,
+        attributes: { exclude: ['userId'] }
     });
+
     if (!plant) {
-        const error = new Error('Planta no encontrada.');
-        error.customStatus = httpStatus.NOT_FOUND;
-        throw error;
+        throw createError(StatusCodes.NOT_FOUND, 'Planta no encontrada.');
     }
     return plant;
 };
 
+const getUserPlants = async (userId) => {
+    const plants = await Plant.findAll({
+        where: { userId },
+        include: [
+            { model: AdoptionRequest, as: 'requests', attributes: ['id', 'requesterId', 'status'] },
+            { model: Tag, as: 'tags' }
+        ],
+        attributes: { exclude: ['userId'] },
+        order: [['createdAt', 'DESC']]
+    });
+    return plants;
+};
 
-const updatePlant = async (id, ownerId, plantData, tags) => {
-    const plant = await Plant.findByPk(id);
+const createPlant = async (plantData, tagIds, careData) => {
+    const newPlant = await Plant.create(plantData);
+
+    if (tagIds && tagIds.length > 0) {
+        const tags = await Tag.findAll({ where: { id: tagIds } });
+        await newPlant.setTags(tags);
+    }
+    
+    if (careData) {
+        await PlantCare.create({ ...careData, plantId: newPlant.id });
+    }
+
+    const createdPlant = await Plant.findByPk(newPlant.id, {
+        include: PLANT_FULL_INCLUDE_OPTIONS,
+        attributes: { exclude: ['userId'] }
+    });
+
+    if (!createdPlant) {
+        throw createError(StatusCodes.INTERNAL_SERVER_ERROR, 'Error al confirmar la creación de la planta.');
+    }
+
+    return createdPlant;
+};
+
+const updatePlant = async (plantId, userId, plantData, tagIds, careData) => {
+    const plant = await Plant.findByPk(plantId);
 
     if (!plant) {
-        const error = new Error('Planta no encontrada.');
-        error.customStatus = httpStatus.NOT_FOUND;
-        throw error;
+        throw createError(StatusCodes.NOT_FOUND, 'Planta no encontrada.');
     }
-    if (plant.ownerId !== ownerId) {
-        const error = new Error('No tienes permiso para editar esta planta.');
-        error.customStatus = httpStatus.FORBIDDEN; 
+    
+    if (plant.userId !== userId) {
+        throw createError(StatusCodes.FORBIDDEN, 'No tienes permiso para modificar esta planta.');
     }
 
     await plant.update(plantData);
-    await processTags(plant, tags);
 
-    return Plant.findByPk(id, { include: [Photo, Tag] });
-};
-
-
-const deletePlant = async (id, ownerId) => {
-    const plant = await Plant.findByPk(id);
-
-    if (!plant) {
-        const error = new Error('Planta no encontrada.');
-        error.customStatus = httpStatus.NOT_FOUND;
-        throw error;
-    }
-    if (plant.ownerId !== ownerId) {
-        const error = new Error('No tienes permiso para eliminar esta planta.');
-        error.customStatus = httpStatus.FORBIDDEN;
-        throw error;
+    if (tagIds) {
+        const tags = await Tag.findAll({ where: { id: tagIds } });
+        await plant.setTags(tags); 
     }
 
-    await plant.destroy();
+    if (careData) {
+        const existingCare = await PlantCare.findOne({ where: { plantId } });
+        if (existingCare) {
+            await existingCare.update(careData);
+        } else {
+            await PlantCare.create({ ...careData, plantId });
+        }
+    }
+
+    const updatedPlant = await Plant.findByPk(plantId, {
+        include: PLANT_FULL_INCLUDE_OPTIONS,
+        attributes: { exclude: ['userId'] }
+    });
+
+    return updatedPlant;
 };
 
-
-
-const adoptPlant = async (plantId, adopterId) => {
+const deletePlant = async (plantId, userId) => {
     const plant = await Plant.findByPk(plantId);
-    
+
     if (!plant) {
-        const error = new Error('Planta no encontrada.');
-        error.customStatus = httpStatus.NOT_FOUND;
-        throw error;
-    }
-    if (plant.status !== 'available') {
-        const error = new Error('Esta planta ya no está disponible para adopción.');
-        error.customStatus = httpStatus.BAD_REQUEST;
-        throw error;
-    }
-    if (plant.ownerId === adopterId) {
-        const error = new Error('No puedes adoptar tu propia planta.');
-        error.customStatus = httpStatus.BAD_REQUEST;
-        throw error;
+        throw createError(StatusCodes.NOT_FOUND, 'Planta no encontrada.');
     }
 
-    await plant.update({ status: 'adopted', adopterId });
-    return plant;
+    if (plant.userId !== userId) {
+        throw createError(StatusCodes.FORBIDDEN, 'No tienes permiso para eliminar esta planta.');
+    }
+
+    await plant.destroy(); 
 };
+
 
 module.exports = {
-  createPlant,
-  getPlants,
-  getPlantById,
-  updatePlant,
-  deletePlant,
-  adoptPlant
+    getPlants,
+    getPlantById,
+    createPlant,
+    updatePlant,
+    deletePlant,
+    getUserPlants
 };

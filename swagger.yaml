@@ -2,7 +2,7 @@ openapi: 3.0.0
 info:
   title: API de Vivero (Node.js/Sequelize)
   version: 1.0.0
-  description: Documentacion de la API para la gestion de usuarios, autenticacion y plantas en adopcion.
+  description: Documentación de la API para la gestión de usuarios, plantas en adopción, solicitudes y mensajería.
 servers:
   - url: /api
     description: Servidor Local
@@ -15,8 +15,9 @@ components:
       bearerFormat: JWT
   
   schemas:
-    # --- ESQUEMA DE USUARIO (YA EXISTENTE) ---
+    # --- ESQUEMA DE USUARIO (MANTENIDO) ---
     User:
+      # ... (Estructura de Usuario mantenida) ...
       type: object
       properties:
         id:
@@ -38,8 +39,42 @@ components:
         - name
         - email
         - password
+    
+    # --- ESQUEMA DE TAG (NUEVO) ---
+    Tag:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+          example: 1
+        name:
+          type: string
+          example: Suculenta
 
-    # --- ESQUEMA DE PLANTA (NUEVO) ---
+    # --- ESQUEMA DE CUIDADOS (NUEVO) ---
+    PlantCare:
+      type: object
+      properties:
+        light:
+          type: string
+          example: Indirecta Brillante
+        watering:
+          type: string
+          example: Cada 7-10 días
+        humidity:
+          type: string
+          example: Baja
+        temperature:
+          type: string
+          example: 18-25°C
+      required:
+        - light
+        - watering
+        - humidity
+        - temperature
+        
+    # --- ESQUEMA DE PLANTA (ACTUALIZADO para reflejar el backend) ---
     Plant:
       type: object
       properties:
@@ -47,96 +82,128 @@ components:
           type: integer
           readOnly: true
           example: 5
-        title:
+        name:
           type: string
           example: Cactus Silla de Suegra
         description:
           type: string
-          example: Lo dejo porque crecio mucho. Necesita mucho sol.
+          example: Lo dejo porque creció mucho. Necesita mucho sol.
         status:
           type: string
-          enum: [available, pending, adopted]
-          example: available
-        ownerId:
+          enum: [AVAILABLE, PENDING_AGREEMENT, ADOPTED]
+          example: AVAILABLE
+        userId:
           type: integer
           readOnly: true
-          description: ID del usuario que publica la planta.
-        adopterId:
-          type: integer
-          nullable: true
-          readOnly: true
-          description: ID del usuario que adopto la planta.
-        photos:
-          type: array
-          items:
-            type: string
-          description: Array de URLs de las fotos de la planta.
+          description: ID del usuario Donante.
+        isCatalog:
+          type: boolean
+          description: Indica si es solo una planta informativa (Catálogo).
+          example: false
+        location:
+          type: string
+          example: Guadalajara
         tags:
           type: array
           items:
-            type: string
-          description: Etiquetas para busqueda (ej: suculenta, interior, sol).
+            $ref: '#/components/schemas/Tag'
+          description: Etiquetas asociadas.
+        PlantCare:
+          $ref: '#/components/schemas/PlantCare'
+          description: Información de cuidados si aplica.
       required: 
-        - title
+        - name
         - description
-
-    # --- ESQUEMA DE COMENTARIO (NUEVO) ---
-    Comment:
+    
+    # --- ESQUEMA DE SOLICITUD DE ADOPCIÓN (NUEVO) ---
+    AdoptionRequest:
       type: object
       properties:
+        id:
+          type: integer
+          readOnly: true
+          example: 10
+        plantId:
+          type: integer
+          example: 5
+        requesterId:
+          type: integer
+          readOnly: true
+          example: 2
+        message:
+          type: string
+          nullable: true
+          example: Me gustaría mucho adoptarla, cuido bien las plantas.
+        status:
+          type: string
+          enum: [PENDING, ACCEPTED, REJECTED]
+          example: PENDING
+      required:
+        - plantId
+
+    # --- ESQUEMA DE MENSAJE (NUEVO) ---
+    Message:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+          example: 101
+        requestId:
+          type: integer
+          readOnly: true
+          example: 10
+        senderId:
+          type: integer
+          readOnly: true
+          example: 1
         content:
           type: string
-          example: Me interesa mucho, ¿todavia sigue disponible?
+          example: ¿Podríamos vernos el sábado por la mañana?
+        isAgreementFinalized:
+          type: boolean
+          example: false
       required:
         - content
 
 paths:
-  # --- RUTAS DE AUTENTICACION Y USUARIOS (CRUD) ---
-
+  # --- RUTAS DE AUTENTICACION Y USUARIOS (MANTENIDAS) ---
   /auth/login:
-    post:
-      tags:
-        - Autenticacion
-      summary: "Inicia sesion y obtiene un JWT."
-      # ... (Resto de la especificacion del login) ...
-
+    # ... (Mantenido) ...
   /users:
-    get:
-      tags:
-        - Usuarios
-      summary: "[READ ALL] Obtiene la lista de todos los usuarios (Protegida)."
-      security:
-        - BearerAuth: []
-      # ... (Resto de la especificacion del GET ALL) ...
-
-    post:
-      tags:
-        - Usuarios
-      summary: "[CREATE] Crea un nuevo usuario."
-      # ... (Resto de la especificacion del POST) ...
-      
+    # ... (Mantenido) ...
   /users/{id}:
-    # ... (Resto de las rutas GET/PUT/DELETE de usuarios) ...
+    # ... (Mantenido) ...
     
-  # --- RUTAS DE PLANTAS EN ADOPCION ---
+  # --- RUTAS DE PLANTAS EN ADOPCION Y CATÁLOGO ---
 
   /plants:
     get:
       tags:
         - Plantas
-      summary: "[READ ALL] Obtiene lista de plantas. Filtra por tag o status."
+      summary: "[READ ALL] Obtiene lista de plantas disponibles, catálogo, o ambas."
       parameters:
         - in: query
-          name: tag
+          name: searchTerm
           schema:
             type: string
-          description: Filtrar por etiqueta (ej: 'suculenta').
+          description: Texto para buscar en el nombre de la planta.
+        - in: query
+          name: tagId
+          schema:
+            type: integer
+          description: Filtrar por ID de etiqueta.
+        - in: query
+          name: isCatalog
+          schema:
+            type: boolean
+          description: 'Si es true, busca en el catálogo de cuidados. Si es false/ausente, busca en adopción.'
         - in: query
           name: status
           schema:
             type: string
-            enum: [available, adopted]
-          description: Filtrar por estado de adopcion.
+            enum: [AVAILABLE, PENDING_AGREEMENT, ADOPTED]
+          description: Filtrar por estado de adopción.
       responses:
         '200':
           description: Lista de plantas obtenida.
@@ -144,7 +211,7 @@ paths:
     post:
       tags:
         - Plantas
-      summary: "[CREATE] Pone una planta en adopcion (Protegida)."
+      summary: "[CREATE] Publica una planta en adopción o catálogo (Protegida)."
       security:
         - BearerAuth: []
       requestBody:
@@ -152,10 +219,32 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Plant'
+              type: object
+              properties:
+                plantData:
+                  $ref: '#/components/schemas/Plant'
+                tagIds:
+                  type: array
+                  items:
+                    type: integer
+                  description: Array de IDs de Tags.
+                careData:
+                  $ref: '#/components/schemas/PlantCare'
+                  description: Información de cuidados (si es para catálogo).
       responses:
         '201':
           description: Planta creada exitosamente.
+  
+  /plants/my-plants:
+    get:
+      tags:
+        - Plantas
+      summary: "[READ ALL] Obtiene las plantas publicadas por el usuario logueado (Mi Perfil)."
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Lista de plantas del usuario obtenida.
 
   /plants/{id}:
     parameters:
@@ -167,19 +256,12 @@ paths:
         description: ID de la planta.
         
     get:
-      tags:
-        - Plantas
-      summary: "[READ ONE] Obtiene una planta por ID."
-      responses:
-        '200':
-          description: Planta encontrada.
-        '404':
-          description: Planta no encontrada.
-
+      # ... (Mantenido) ...
+    
     put:
       tags:
         - Plantas
-      summary: "[UPDATE] Actualiza una planta por ID (Protegida - Solo dueno)."
+      summary: "[UPDATE] Actualiza una planta por ID (Protegida - Solo Donante)."
       security:
         - BearerAuth: []
       requestBody:
@@ -187,7 +269,18 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Plant'
+              type: object
+              properties:
+                plantData:
+                  $ref: '#/components/schemas/Plant'
+                tagIds:
+                  type: array
+                  items:
+                    type: integer
+                  description: Nuevos IDs de Tags a asociar.
+                careData:
+                  $ref: '#/components/schemas/PlantCare'
+                  description: Información de cuidados si se actualiza.
       responses:
         '200':
           description: Planta actualizada.
@@ -195,35 +288,16 @@ paths:
           description: No tienes permiso para editarla.
 
     delete:
-      tags:
-        - Plantas
-      summary: "[DELETE] Elimina una planta por ID (Protegida - Solo dueno)."
-      security:
-        - BearerAuth: []
-      responses:
-        '204':
-          description: Planta eliminada exitosamente.
-        '403':
-          description: No tienes permiso para eliminarla.
+      # ... (Mantenido) ...
 
-  /plants/{id}/adoptar:
+
+  # --- NUEVAS RUTAS DE SOLICITUDES DE ADOPCIÓN ---
+  
+  /requests:
     post:
       tags:
-        - Plantas
-      summary: "Marca una planta como adoptada por el usuario logueado (Protegida)."
-      security:
-        - BearerAuth: []
-      responses:
-        '200':
-          description: Adopcion exitosa.
-        '400':
-          description: La planta ya no esta disponible o es tuya.
-
-  /plants/{id}/comentarios:
-    post:
-      tags:
-        - Plantas
-      summary: "Agrega un comentario a una planta (Protegida)."
+        - Solicitudes de Adopcion
+      summary: "[CREATE] Crea una solicitud para adoptar una planta (Protegida)."
       security:
         - BearerAuth: []
       requestBody:
@@ -231,7 +305,111 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Comment'
+              $ref: '#/components/schemas/AdoptionRequest'
       responses:
         '201':
-          description: Comentario agregado.
+          description: Solicitud creada exitosamente.
+        '400':
+          description: La planta no está disponible o ya solicitaste.
+
+  /requests/incoming:
+    get:
+      tags:
+        - Solicitudes de Adopcion
+      summary: "[READ ALL] Obtiene las solicitudes recibidas por el usuario (Donante)."
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Lista de solicitudes entrantes.
+
+  /requests/{id}/accept:
+    put:
+      tags:
+        - Solicitudes de Adopcion
+      summary: "[UPDATE] Acepta una solicitud (habilita el chat). Solo Donante."
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: integer
+          required: true
+          description: ID de la Solicitud.
+      responses:
+        '200':
+          description: Solicitud aceptada y chat habilitado.
+
+  /requests/{id}/reject:
+    put:
+      tags:
+        - Solicitudes de Adopcion
+      summary: "[UPDATE] Rechaza una solicitud. Solo Donante."
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: integer
+          required: true
+          description: ID de la Solicitud.
+      responses:
+        '200':
+          description: Solicitud rechazada.
+
+  # --- NUEVAS RUTAS DE MENSAJERÍA (CHAT) ---
+  
+  /messages/{requestId}:
+    parameters:
+      - in: path
+        name: requestId
+        schema:
+          type: integer
+        required: true
+        description: ID de la Solicitud Aceptada (actúa como ID del Chat).
+
+    get:
+      tags:
+        - Mensajería (Chat)
+      summary: "[READ ALL] Obtiene el historial de mensajes del acuerdo (Protegida)."
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Historial de mensajes.
+
+    post:
+      tags:
+        - Mensajería (Chat)
+      summary: "[CREATE] Envía un mensaje al chat de acuerdo (Protegida)."
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Message'
+      responses:
+        '201':
+          description: Mensaje enviado.
+
+  /messages/{requestId}/finalize:
+    put:
+      tags:
+        - Mensajería (Chat)
+      summary: "[UPDATE] Marca el acuerdo como cerrado/planta entregada (Protegida)."
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: requestId
+          schema:
+            type: integer
+          required: true
+          description: ID de la Solicitud Aceptada (ID del Chat).
+      responses:
+        '200':
+          description: Acuerdo finalizado y planta marcada como ADOPTED.

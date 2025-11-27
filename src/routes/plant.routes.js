@@ -1,53 +1,53 @@
-
 const express = require("express");
-const { body, param } = require("express-validator");
-const { authMiddleware } = require("../middlewares/authMiddleware");
+const { body, param, query } = require("express-validator");
+const plantController = require("../controllers/plant.controller");
 const { validateFields } = require("../middlewares/validateFields");
-const { 
-    createPlant, 
-    getPlants, 
-    getPlant, 
-    updatePlant, 
-    deletePlant, 
-    adoptPlant, 
-    addComment 
-} = require("../controllers/plant.controller");
+const { authMiddleware } = require("../middlewares/authMiddleware");
 
 const router = express.Router();
 
+// --- Validaciones Reutilizables ---
 
-const idValidation = [
-    param("id").isInt().withMessage("El ID debe ser un número entero."),
-    validateFields,
-];
-const plantBodyValidation = [
-    body("title").notEmpty().withMessage("El título es obligatorio."),
-    body("description").notEmpty().withMessage("La descripción es obligatoria."),
-    body("photos").isArray().withMessage("Las fotos deben ser un array de URLs."),
-    body("tags").isArray().withMessage("Los tags deben ser un array de strings."),
+const plantIdValidation = [
+    param("id").isInt().withMessage("El ID de la planta debe ser un número entero"),
     validateFields,
 ];
 
+const plantCreationValidation = [
+    body("plantData.name").notEmpty().withMessage("El nombre de la planta es obligatorio"),
+    body("plantData.description").notEmpty().withMessage("La descripción es obligatoria"),
+    body("plantData.isCatalog").isBoolean().optional().withMessage("isCatalog debe ser booleano"),
+    // Validaciones condicionales para el Catálogo/Cuidados
+    body("careData.light")
+        .if(body("plantData.isCatalog").exists().equals(true))
+        .notEmpty().withMessage("La información de luz es obligatoria para el catálogo"),
+    // Validación de Tags (asumiendo que tagIds es un array de enteros)
+    body("tagIds").isArray().optional().withMessage("tagIds debe ser un array de IDs de tags"),
+    validateFields,
+];
 
-router.get("/", getPlants); 
+// --- Rutas ---
 
+// GET /api/plants: Obtener la galería principal (sin Auth, para la vista pública)
+router.get("/", [
+    query("isCatalog").isBoolean().optional().withMessage("El filtro isCatalog debe ser booleano"),
+    query("status").isIn(['AVAILABLE', 'ADOPTED']).optional().withMessage("Estatus no válido"),
+    validateFields,
+], plantController.getPlants);
 
-router.post("/", authMiddleware, plantBodyValidation, createPlant);
+// GET /api/plants/my-plants: Obtener las plantas publicadas por el usuario (Mi Perfil)
+router.get("/my-plants", authMiddleware, plantController.getUserPlants);
 
+// POST /api/plants: Crear una nueva planta (requiere Auth)
+router.post("/", authMiddleware, plantCreationValidation, plantController.addPlant);
 
-router.get("/:id", idValidation, getPlant);
+// GET /api/plants/:id: Obtener el detalle de una planta (sin Auth)
+router.get("/:id", plantIdValidation, plantController.getPlant);
 
+// PUT /api/plants/:id: Actualizar una planta (requiere Auth, solo el dueño)
+router.put("/:id", authMiddleware, plantIdValidation, plantController.updatePlant);
 
-router.put("/:id", authMiddleware, idValidation, plantBodyValidation, updatePlant);
-
-
-router.delete("/:id", authMiddleware, idValidation, deletePlant);
-
-
-router.post("/:id/adoptar", authMiddleware, idValidation, adoptPlant);
-
-
-router.post("/:id/comentarios", authMiddleware, idValidation, [body("content").notEmpty().withMessage("El comentario no puede estar vacío.")], addComment);
-
+// DELETE /api/plants/:id: Eliminar una planta (requiere Auth, solo el dueño)
+router.delete("/:id", authMiddleware, plantIdValidation, plantController.deletePlant);
 
 module.exports = router;

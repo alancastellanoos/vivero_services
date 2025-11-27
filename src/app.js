@@ -8,12 +8,15 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit'); 
 const cors = require('cors'); 
 
+// --- Importación de Nuevas Rutas ---
 const userRoutes = require("./routes/user.routes");
 const authRoutes = require("./routes/auth.routes");
 const plantRoutes = require("./routes/plant.routes"); 
+const requestRoutes = require("./routes/request.routes"); // Nueva ruta
+const messageRoutes = require("./routes/message.routes"); // Nueva ruta
 
 const { initDB } = require("./models/index");
-const errorHandler = require('./middlewares/errorHandler'); 
+const errorHandler = require('./middlewares/errorHandler'); // Importación del middleware de manejo de errores
 
 dotenv.config();
 
@@ -49,19 +52,22 @@ app.use(express.json());
 
 
 app.use(morgan("dev")); 
-
-
+// app.use(helmet()); // Opcional: Recomendado para seguridad
 
 
 if (swaggerDocument && Object.keys(swaggerDocument).length) {
   app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument)); 
 }
 
-
+// --- Uso de Rutas de la API ---
 app.use("/api/auth", authRoutes); 
 app.use("/api/users", userRoutes); 
 app.use("/api/plants", plantRoutes); 
+app.use("/api/requests", requestRoutes); // Uso de la nueva ruta de Solicitudes
+app.use("/api/messages", messageRoutes); // Uso de la nueva ruta de Mensajería
 
+// --- Manejo de Errores (Debe ir después de todas las rutas) ---
+app.use(errorHandler);
 
 
 const PORT = process.env.PORT || 3000;

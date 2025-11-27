@@ -1,4 +1,3 @@
-// archivo: models/photo.model.js
 
 const { DataTypes } = require("sequelize");
 const sequelize = require("../config/db"); 
@@ -9,7 +8,7 @@ const Photo = sequelize.define("Photo", {
     type: DataTypes.STRING,
     allowNull: false,
   },
-  isPrimary: { // Para UX, saber cuál es la foto principal
+  isPrimary: { 
     type: DataTypes.BOOLEAN,
     defaultValue: false,
   },
@@ -23,7 +22,7 @@ const Photo = sequelize.define("Photo", {
   }
 });
 
-// Definir la asociación
+
 Photo.belongsTo(Plant, { foreignKey: 'plantId' });
 Plant.hasMany(Photo, { foreignKey: 'plantId' });
 

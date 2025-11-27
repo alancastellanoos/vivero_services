@@ -1,4 +1,4 @@
-// archivo: controllers/authController.js (NUEVO)
+
 
 const authService = require('../services/authService');
 const logger = require('../config/logger');

@@ -1,47 +1,30 @@
+const { DataTypes } = require('sequelize');
+const sequelize = require('../config/db');
 
-const { DataTypes } = require("sequelize");
-const sequelize = require("../config/db"); 
-const User = require('./user.model'); 
-
-const Plant = sequelize.define("Plant", {
-  title: {
-    type: DataTypes.STRING,
-    allowNull: false,
-    validate: {
-      notEmpty: { msg: "El título es obligatorio." }
-    }
+const Plant = sequelize.define('Plant', {
+  name: {
+    type: DataTypes.STRING(100),
+    allowNull: false
   },
   description: {
     type: DataTypes.TEXT,
-    allowNull: false,
+    allowNull: false
   },
   status: {
-    type: DataTypes.ENUM('available', 'pending', 'adopted'),
-    defaultValue: 'available',
+    type: DataTypes.ENUM('AVAILABLE', 'PENDING_AGREEMENT', 'ADOPTED'),
     allowNull: false,
+    defaultValue: 'AVAILABLE'
   },
-
-  ownerId: {
-    type: DataTypes.INTEGER,
+  isCatalog: {
+    type: DataTypes.BOOLEAN,
     allowNull: false,
-    references: {
-      model: 'Users', 
-      key: 'id',
-    }
+    defaultValue: false
   },
-
-  adopterId: {
-    type: DataTypes.INTEGER,
-    allowNull: true,
-    references: {
-      model: 'Users',
-      key: 'id',
-    }
-  }
+  location: {
+    type: DataTypes.STRING(100),
+    allowNull: true
+  },
+  // La columna 'userId' (Donante) será añadida automáticamente por la asociación
 });
-
-
-Plant.belongsTo(User, { as: 'Owner', foreignKey: 'ownerId' });
-Plant.belongsTo(User, { as: 'Adopter', foreignKey: 'adopterId' });
 
 module.exports = Plant;
