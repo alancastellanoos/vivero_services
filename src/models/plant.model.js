@@ -24,7 +24,12 @@ const Plant = sequelize.define('Plant', {
     type: DataTypes.STRING(100),
     allowNull: true
   },
-  // La columna 'userId' (Donante) será añadida automáticamente por la asociación
+
+  image_url: {
+    type: DataTypes.STRING(255), 
+    allowNull: true 
+  }
+
 });
 
 module.exports = Plant;

@@ -5,7 +5,8 @@ const {
   getUser, 
   addUser, 
   updateUser, 
-  deleteUser 
+  deleteUser,
+  getProfile, 
 } = require("../controllers/user.controller");
 const { validateFields } = require("../middlewares/validateFields");
 const { authMiddleware } = require("../middlewares/authMiddleware");
@@ -45,17 +46,16 @@ const putValidation = [
     validateFields,
 ];
 
-router.get("/", authMiddleware, getUsers);
+router.get("/profile", authMiddleware, getProfile);
 
+
+router.get("/", authMiddleware, getUsers);
 
 router.post("/", postValidation, addUser);
 
-
 router.get("/:id", authMiddleware, idValidation, getUser);
 
-
 router.put("/:id", authMiddleware, putValidation, updateUser);
-
 
 router.delete("/:id", authMiddleware, idValidation, deleteUser);
 

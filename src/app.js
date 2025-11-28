@@ -21,7 +21,7 @@ const errorHandler = require('./middlewares/errorHandler'); // Importación del 
 dotenv.config();
 
 
-const swaggerPath = path.resolve(__dirname, '..', 'swagger.yaml');
+const swaggerPath = path.resolve(__dirname, 'uploads', 'swagger.yaml');
 let swaggerDocument = {};
 try {
   swaggerDocument = YAML.load(swaggerPath);
@@ -54,7 +54,13 @@ app.use(express.json());
 app.use(morgan("dev")); 
 // app.use(helmet()); // Opcional: Recomendado para seguridad
 
-
+// **********************************************
+// **** CORRECCIÓN CLAVE ****
+// **********************************************
+// Retrocede un nivel ('..') para salir de 'src' y encontrar 'uploads'
+const UPLOADS_PATH = path.join(__dirname, '..', 'uploads');
+app.use('/uploads', express.static(UPLOADS_PATH));
+// **********************************************
 if (swaggerDocument && Object.keys(swaggerDocument).length) {
   app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument)); 
 }

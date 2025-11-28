@@ -71,7 +71,12 @@ const getUserPlants = async (userId) => {
     return plants;
 };
 
-const createPlant = async (plantData, tagIds, careData) => {
+const createPlant = async (plantData, tagIds, careData, imageUrl) => {
+    
+    if (imageUrl) {
+        plantData.image_url = imageUrl; 
+    }
+
     const newPlant = await Plant.create(plantData);
 
     if (tagIds && tagIds.length > 0) {

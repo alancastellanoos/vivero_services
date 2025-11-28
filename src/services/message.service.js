@@ -2,16 +2,25 @@ const { Message, AdoptionRequest, Plant } = require('../models/index');
 const createError = require('http-errors');
 const { StatusCodes } = require('http-status-codes');
 
+const User = Message.sequelize.models.User; 
+
 const isUserInChat = async (requestId, userId) => {
     const request = await AdoptionRequest.findByPk(requestId, {
-        include: [{ model: Plant, as: 'Plant' }]
+        include: [
+            { 
+                model: Plant, 
+                as: 'Plant',
+                include: [{ model: User, as: 'Donator', attributes: ['id', 'name'] }]
+            },
+            { model: User, as: 'Requester', attributes: ['id', 'name'] }
+        ]
     });
 
     if (!request || request.status !== 'ACCEPTED') {
-        throw createError(StatusCodes.FORBIDDEN, 'Chat no habilitado. Solicitud no aceptada.');
+        throw createError(StatusCodes.FORBIDDEN, 'Chat no habilitado. Solicitud no aceptada o pendiente.');
     }
 
-    const isDonator = request.Plant.userId === userId;
+    const isDonator = request.Plant.Donator.id === userId; 
     const isRequester = request.requesterId === userId;
     
     if (!isDonator && !isRequester) {
@@ -22,15 +31,21 @@ const isUserInChat = async (requestId, userId) => {
 };
 
 const getMessages = async (requestId, userId) => {
-    await isUserInChat(requestId, userId); 
+    const { request } = await isUserInChat(requestId, userId); 
 
     const messages = await Message.findAll({
         where: { requestId },
-        include: [{ model: Message.sequelize.models.User, as: 'Sender', attributes: ['id', 'name'] }],
         order: [['createdAt', 'ASC']]
     });
 
-    return messages;
+    const isAgreementFinalized = messages.some(msg => msg.isAgreementFinalized);
+    
+    return {
+        messages: messages, 
+        request: request, 
+        isAgreementFinalized: isAgreementFinalized,
+        currentUserId: userId 
+    };
 };
 
 const createMessage = async (requestId, senderId, content) => {
@@ -39,23 +54,27 @@ const createMessage = async (requestId, senderId, content) => {
     const newMessage = await Message.create({ requestId, senderId, content });
     
     const messageWithSender = await Message.findByPk(newMessage.id, {
-        include: [{ model: Message.sequelize.models.User, as: 'Sender', attributes: ['id', 'name'] }]
+        include: [{ 
+            model: User, 
+            as: 'Sender', 
+            attributes: ['id', 'name'] 
+        }]
     });
 
     return messageWithSender;
 };
 
 const finalizeAgreement = async (requestId, userId) => {
-    const { request, isDonator, isRequester } = await isUserInChat(requestId, userId);
+    const { request } = await isUserInChat(requestId, userId);
     
-    if (!isDonator && !isRequester) {
-        throw createError(StatusCodes.FORBIDDEN, 'Acceso denegado.');
-    }
 
-    await Message.update(
-        { isAgreementFinalized: true },
-        { where: { requestId } }
-    );
+    await Message.create({
+        requestId: requestId,
+        senderId: userId,
+        content: `Acuerdo finalizado por el usuario.`,
+        isAgreementFinalized: true
+    });
+
 
     await Plant.update(
         { status: 'ADOPTED' },

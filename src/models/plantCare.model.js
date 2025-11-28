@@ -18,7 +18,7 @@ const PlantCare = sequelize.define('PlantCare', {
     type: DataTypes.STRING(100),
     allowNull: false
   },
-  // La columna 'plantId' será añadida automáticamente por la asociación
+
 });
 
 module.exports = PlantCare;

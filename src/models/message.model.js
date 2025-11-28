@@ -11,7 +11,7 @@ const Message = sequelize.define('Message', {
     allowNull: false,
     defaultValue: false
   },
-  // Las columnas 'requestId' y 'senderId' serán añadidas automáticamente
+
 });
 
 module.exports = Message;

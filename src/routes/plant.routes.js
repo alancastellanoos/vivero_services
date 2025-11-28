@@ -3,10 +3,9 @@ const { body, param, query } = require("express-validator");
 const plantController = require("../controllers/plant.controller");
 const { validateFields } = require("../middlewares/validateFields");
 const { authMiddleware } = require("../middlewares/authMiddleware");
+const uploadMiddleware = require("../middlewares/upload"); 
 
 const router = express.Router();
-
-// --- Validaciones Reutilizables ---
 
 const plantIdValidation = [
     param("id").isInt().withMessage("El ID de la planta debe ser un número entero"),
@@ -14,40 +13,72 @@ const plantIdValidation = [
 ];
 
 const plantCreationValidation = [
-    body("plantData.name").notEmpty().withMessage("El nombre de la planta es obligatorio"),
-    body("plantData.description").notEmpty().withMessage("La descripción es obligatoria"),
-    body("plantData.isCatalog").isBoolean().optional().withMessage("isCatalog debe ser booleano"),
-    // Validaciones condicionales para el Catálogo/Cuidados
-    body("careData.light")
-        .if(body("plantData.isCatalog").exists().equals(true))
-        .notEmpty().withMessage("La información de luz es obligatoria para el catálogo"),
-    // Validación de Tags (asumiendo que tagIds es un array de enteros)
-    body("tagIds").isArray().optional().withMessage("tagIds debe ser un array de IDs de tags"),
-    validateFields,
+    body("data").exists().withMessage("Faltan los datos de la planta."),
+
+    body('data')
+        .custom((value, { req }) => {
+            try {
+                req.parsedPlantData = JSON.parse(value);
+                return true;
+            } catch (error) {
+                throw new Error("El formato de los datos de la planta es inválido (JSON mal formado).");
+            }
+        }),
+
+    body("data")
+        .custom((value, { req }) => {
+            const data = req.parsedPlantData;
+            
+            if (!data.name || data.name.trim() === "") {
+                throw new Error("El nombre de la planta es obligatorio.");
+            }
+            if (!data.description || data.description.trim() === "") {
+                throw new Error("La descripción es obligatoria.");
+            }
+            if (!data.location || data.location.trim() === "") {
+                throw new Error("La ubicación es obligatoria.");
+            }
+            
+            if (!data.PlantCare) {
+                throw new Error("Faltan los datos de cuidado.");
+            }
+            if (!data.PlantCare.light || data.PlantCare.light.trim() === "") {
+                throw new Error("La información de luz es obligatoria.");
+            }
+             if (!data.PlantCare.watering || data.PlantCare.watering.trim() === "") {
+                throw new Error("La información de riego es obligatoria.");
+            }
+            
+            if (data.tagIds && !Array.isArray(data.tagIds)) {
+                throw new Error("tagIds debe ser un array de IDs de tags.");
+            }
+            
+            return true;
+        }),
+        
+    validateFields, 
 ];
 
-// --- Rutas ---
-
-// GET /api/plants: Obtener la galería principal (sin Auth, para la vista pública)
 router.get("/", [
     query("isCatalog").isBoolean().optional().withMessage("El filtro isCatalog debe ser booleano"),
     query("status").isIn(['AVAILABLE', 'ADOPTED']).optional().withMessage("Estatus no válido"),
     validateFields,
 ], plantController.getPlants);
 
-// GET /api/plants/my-plants: Obtener las plantas publicadas por el usuario (Mi Perfil)
 router.get("/my-plants", authMiddleware, plantController.getUserPlants);
 
-// POST /api/plants: Crear una nueva planta (requiere Auth)
-router.post("/", authMiddleware, plantCreationValidation, plantController.addPlant);
+router.post(
+    "/", 
+    authMiddleware,         
+    uploadMiddleware,       
+    plantCreationValidation, 
+    plantController.addPlant 
+);
 
-// GET /api/plants/:id: Obtener el detalle de una planta (sin Auth)
 router.get("/:id", plantIdValidation, plantController.getPlant);
 
-// PUT /api/plants/:id: Actualizar una planta (requiere Auth, solo el dueño)
 router.put("/:id", authMiddleware, plantIdValidation, plantController.updatePlant);
 
-// DELETE /api/plants/:id: Eliminar una planta (requiere Auth, solo el dueño)
 router.delete("/:id", authMiddleware, plantIdValidation, plantController.deletePlant);
 
 module.exports = router;

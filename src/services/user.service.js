@@ -1,6 +1,6 @@
 const User = require("../models/user.model"); 
-const createError = require('http-errors'); // Usamos http-errors para crear errores HTTP
-const { StatusCodes } = require('http-status-codes'); // Opcional, pero útil
+const createError = require('http-errors'); 
+const { StatusCodes } = require('http-status-codes'); 
 
 const getUserById = async (id) => {
   const user = await User.findByPk(id, { attributes: { exclude: ['password'] } });

@@ -11,7 +11,7 @@ const AdoptionRequest = sequelize.define('AdoptionRequest', {
     type: DataTypes.TEXT,
     allowNull: true
   },
-  // Las columnas 'plantId' y 'requesterId' serán añadidas automáticamente
+
 });
 
 module.exports = AdoptionRequest;
