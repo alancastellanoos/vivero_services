@@ -31,8 +31,45 @@ try {
 
 const app = express();
 
+// *************************************************************************
+// **** CORRECCIÓN CLAVE PARA EXPRESS-RATE-LIMIT Y PROXIES (NGRKO) ****
+// *************************************************************************
+// Habilitar 'trust proxy' para que Express reconozca que está detrás de ngrok 
+// (u otro proxy) y pueda leer correctamente la IP del cliente del header 
+// 'X-Forwarded-For', lo cual es crucial para el Rate Limiting.
+app.set('trust proxy', 1); 
+// *************************************************************************
 
-app.use(cors());
+// *************************************************************************
+// **** CONFIGURACIÓN DE CORS: LISTA BLANCA POR SEGURIDAD ****
+// *************************************************************************
+
+// 1. Define los orígenes (dominios) que pueden acceder a tu API.
+const whitelist = [
+    // El dominio público de ngrok (necesario para el celular)
+    'https://nonalphabetically-endoplasmic-coral.ngrok-free.dev', 
+    // Live Server local (para pruebas en tu PC)
+    'http://127.0.0.1:5500', 
+    'http://localhost:5500' // Por si acaso usas localhost en lugar de 127.0.0.1
+];
+
+const corsOptions = {
+    origin: function (origin, callback) {
+        // Si el origen no está presente (ej. Postman) O está en la lista blanca, permitir acceso.
+        if (!origin || whitelist.includes(origin)) {
+            callback(null, true);
+        } else {
+            // Rechazar cualquier otro origen
+            callback(new Error(`Not allowed by CORS: ${origin}`));
+        }
+    },
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    credentials: true, // Importante si usas cookies o sesiones
+};
+
+// Aplica la lista blanca de CORS
+app.use(cors(corsOptions));
+// *************************************************************************
 
 
 const limiter = rateLimit({
