@@ -15,9 +15,8 @@ components:
       bearerFormat: JWT
   
   schemas:
-    # --- ESQUEMA DE USUARIO (MANTENIDO) ---
+
     User:
-      # ... (Estructura de Usuario mantenida) ...
       type: object
       properties:
         id:
@@ -40,7 +39,7 @@ components:
         - email
         - password
     
-    # --- ESQUEMA DE TAG (NUEVO) ---
+
     Tag:
       type: object
       properties:
@@ -52,7 +51,7 @@ components:
           type: string
           example: Suculenta
 
-    # --- ESQUEMA DE CUIDADOS (NUEVO) ---
+
     PlantCare:
       type: object
       properties:
@@ -74,7 +73,7 @@ components:
         - humidity
         - temperature
         
-    # --- ESQUEMA DE PLANTA (ACTUALIZADO para reflejar el backend) ---
+
     Plant:
       type: object
       properties:
@@ -111,11 +110,15 @@ components:
         PlantCare:
           $ref: '#/components/schemas/PlantCare'
           description: Información de cuidados si aplica.
+        image_url:
+          type: string
+          description: Ruta local del archivo de imagen.
+          example: uploads/imagen_cactus.jpg
       required: 
         - name
         - description
     
-    # --- ESQUEMA DE SOLICITUD DE ADOPCIÓN (NUEVO) ---
+
     AdoptionRequest:
       type: object
       properties:
@@ -141,7 +144,7 @@ components:
       required:
         - plantId
 
-    # --- ESQUEMA DE MENSAJE (NUEVO) ---
+
     Message:
       type: object
       properties:
@@ -167,15 +170,96 @@ components:
         - content
 
 paths:
-  # --- RUTAS DE AUTENTICACION Y USUARIOS (MANTENIDAS) ---
+
   /auth/login:
-    # ... (Mantenido) ...
+    post:
+      tags:
+        - Autenticacion
+      summary: "[AUTH] Inicia sesión y devuelve un token JWT."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  example: juan@mail.com
+                password:
+                  type: string
+                  example: miContrasenaSecreta
+      responses:
+        '200':
+          description: Login exitoso, token devuelto.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                  user:
+                    $ref: '#/components/schemas/User'
+  
   /users:
-    # ... (Mantenido) ...
+    post:
+      tags:
+        - Usuarios
+      summary: "[CREATE] Registra un nuevo usuario."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+      responses:
+        '201':
+          description: Usuario registrado exitosamente.
+
   /users/{id}:
-    # ... (Mantenido) ...
+    parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+        description: ID del usuario.
+    get:
+      tags:
+        - Usuarios
+      summary: "[READ] Obtiene información de un usuario por ID."
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Información del usuario.
+    put:
+      tags:
+        - Usuarios
+      summary: "[UPDATE] Actualiza la información del usuario logueado (Protegida)."
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+      responses:
+        '200':
+          description: Usuario actualizado.
+    delete:
+      tags:
+        - Usuarios
+      summary: "[DELETE] Elimina el usuario logueado (Protegida)."
+      security:
+        - BearerAuth: []
+      responses:
+        '204':
+          description: Usuario eliminado.
     
-  # --- RUTAS DE PLANTAS EN ADOPCION Y CATÁLOGO ---
+
 
   /plants:
     get:
@@ -211,26 +295,48 @@ paths:
     post:
       tags:
         - Plantas
-      summary: "[CREATE] Publica una planta en adopción o catálogo (Protegida)."
+      summary: "[CREATE] Publica una planta en adopción o catálogo. Incluye imagen (Protegida)."
       security:
         - BearerAuth: []
       requestBody:
         required: true
         content:
-          application/json:
+          multipart/form-data:
             schema:
               type: object
               properties:
-                plantData:
-                  $ref: '#/components/schemas/Plant'
+                image:
+                  type: string
+                  format: binary
+                  description: Archivo de imagen de la planta.
+                name:
+                  type: string
+                  example: Cactus Silla de Suegra
+                description:
+                  type: string
+                  example: Lo dejo porque creció mucho. Necesita mucho sol.
+                location:
+                  type: string
+                  example: Guadalajara
+                isCatalog:
+                  type: boolean
+                  example: false
+                  description: 'Si es true, se guarda en el catálogo.'
                 tagIds:
-                  type: array
-                  items:
-                    type: integer
-                  description: Array de IDs de Tags.
-                careData:
-                  $ref: '#/components/schemas/PlantCare'
-                  description: Información de cuidados (si es para catálogo).
+                  type: string
+                  description: Array de IDs de Tags en formato JSON string (ej: "[1, 2]").
+                light:
+                  type: string
+                  description: Cuidado de luz.
+                watering:
+                  type: string
+                  description: Cuidado de riego.
+                humidity:
+                  type: string
+                  description: Cuidado de humedad.
+                temperature:
+                  type: string
+                  description: Cuidado de temperatura.
       responses:
         '201':
           description: Planta creada exitosamente.
@@ -256,31 +362,50 @@ paths:
         description: ID de la planta.
         
     get:
-      # ... (Mantenido) ...
+      tags:
+        - Plantas
+      summary: "[READ] Obtiene una planta por ID, incluyendo detalles de cuidados y donante."
+      responses:
+        '200':
+          description: Planta obtenida.
+        '404':
+          description: Planta no encontrada.
     
     put:
       tags:
         - Plantas
-      summary: "[UPDATE] Actualiza una planta por ID (Protegida - Solo Donante)."
+      summary: "[UPDATE] Actualiza una planta por ID (Protegida - Solo Donante). Soporta imagen."
       security:
         - BearerAuth: []
       requestBody:
         required: true
         content:
-          application/json:
+          multipart/form-data:
             schema:
               type: object
               properties:
-                plantData:
-                  $ref: '#/components/schemas/Plant'
+                image:
+                  type: string
+                  format: binary
+                  description: Nuevo archivo de imagen (opcional).
+                name:
+                  type: string
+                description:
+                  type: string
+                location:
+                  type: string
+                isCatalog:
+                  type: boolean
                 tagIds:
-                  type: array
-                  items:
-                    type: integer
-                  description: Nuevos IDs de Tags a asociar.
-                careData:
-                  $ref: '#/components/schemas/PlantCare'
-                  description: Información de cuidados si se actualiza.
+                  type: string
+                  description: Array de IDs de Tags en formato JSON string (ej: "[1, 2]").
+                light:
+                  type: string
+                  description: Cuidado de luz.
+                watering:
+                  type: string
+                  description: Cuidado de riego.
+
       responses:
         '200':
           description: Planta actualizada.
@@ -288,10 +413,17 @@ paths:
           description: No tienes permiso para editarla.
 
     delete:
-      # ... (Mantenido) ...
+      tags:
+        - Plantas
+      summary: "[DELETE] Elimina una planta por ID (Protegida - Solo Donante)."
+      security:
+        - BearerAuth: []
+      responses:
+        '204':
+          description: Planta eliminada.
 
 
-  # --- NUEVAS RUTAS DE SOLICITUDES DE ADOPCIÓN ---
+
   
   /requests:
     post:
@@ -322,6 +454,17 @@ paths:
       responses:
         '200':
           description: Lista de solicitudes entrantes.
+
+  /requests/outgoing:
+    get:
+      tags:
+        - Solicitudes de Adopcion
+      summary: "[READ ALL] Obtiene las solicitudes enviadas por el usuario (Solicitante)."
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Lista de solicitudes salientes.
 
   /requests/{id}/accept:
     put:
@@ -359,7 +502,7 @@ paths:
         '200':
           description: Solicitud rechazada.
 
-  # --- NUEVAS RUTAS DE MENSAJERÍA (CHAT) ---
+
   
   /messages/{requestId}:
     parameters:
@@ -391,7 +534,11 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Message'
+              type: object
+              properties:
+                content:
+                  type: string
+                  example: ¿Podríamos vernos el sábado por la mañana?
       responses:
         '201':
           description: Mensaje enviado.
