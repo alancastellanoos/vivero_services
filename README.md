@@ -1,6 +1,6 @@
 # 🌿 Vivero Services API (Backend)
 
-API REST desarrollada con **Node.js, Express, y Sequelize (PostgreSQL)** para la gestión de un vivero de adopción de plantas. Permite a los usuarios donar plantas, buscar opciones de adopción, enviar solicitudes y mantener comunicación directa (chat) para concretar la entrega.
+API REST desarrollada con **Node.js, Express, y Sequelize (MariaDB)** para la gestión de un vivero de adopción de plantas. Permite a los usuarios donar plantas, buscar opciones de adopción, enviar solicitudes y mantener comunicación directa (chat) para concretar la entrega.
 
 ## 🚀 Características Principales
 
